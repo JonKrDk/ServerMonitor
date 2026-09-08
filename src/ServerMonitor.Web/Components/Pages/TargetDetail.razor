@@ -61,6 +61,32 @@ else
         </div>
     </div>
 
+    @if (buckets.Count > 0)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <ApexChart TItem="StatisticsBucket" Title="Response time (ms)" Options="responseOptions">
+                    <ApexPointSeries TItem="StatisticsBucket"
+                                     Items="buckets"
+                                     Name="Average"
+                                     SeriesType="SeriesType.Line"
+                                     XValue="@(b => b.Start.LocalDateTime.ToString("g"))"
+                                     YValue="@(b => (decimal?)b.AverageResponseTimeMs)" />
+                </ApexChart>
+            </div>
+            <div class="col-lg-6">
+                <ApexChart TItem="StatisticsBucket" Title="Uptime (%)" Options="uptimeOptions">
+                    <ApexPointSeries TItem="StatisticsBucket"
+                                     Items="buckets"
+                                     Name="Uptime"
+                                     SeriesType="SeriesType.Bar"
+                                     XValue="@(b => b.Start.LocalDateTime.ToString("g"))"
+                                     YValue="@(b => (decimal?)b.UptimePercent)" />
+                </ApexChart>
+            </div>
+        </div>
+    }
+
     <h2 class="fs-5">Recent checks</h2>
     <table class="table table-sm align-middle">
         <thead>
@@ -96,11 +122,24 @@ else
         new("30d", TimeSpan.FromDays(30))
     ];
 
+    private readonly ApexChartOptions<StatisticsBucket> responseOptions = new()
+    {
+        Chart = new Chart { Toolbar = new Toolbar { Show = false }, Height = 260 },
+        Yaxis = [new YAxis { Min = 0, DecimalsInFloat = 0 }]
+    };
+
+    private readonly ApexChartOptions<StatisticsBucket> uptimeOptions = new()
+    {
+        Chart = new Chart { Toolbar = new Toolbar { Show = false }, Height = 260 },
+        Yaxis = [new YAxis { Min = 0, Max = 100, DecimalsInFloat = 0 }]
+    };
+
     private KeyValuePair<string, TimeSpan> window = windows[0];
     private string ownerId = string.Empty;
     private MonitoredTarget? target;
     private TargetStatistics stats = TargetStatistics.Empty;
     private IReadOnlyList<CheckResult> recent = [];
+    private IReadOnlyList<StatisticsBucket> buckets = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,9 +156,18 @@ else
 
     private async Task LoadAsync()
     {
-        stats = await Statistics.GetStatisticsAsync(Id, DateTimeOffset.UtcNow - window.Value);
+        var since = DateTimeOffset.UtcNow - window.Value;
+        stats = await Statistics.GetStatisticsAsync(Id, since);
+        buckets = await Statistics.GetSeriesAsync(Id, since, BucketSize);
         recent = await Statistics.GetRecentChecksAsync(Id, 25);
     }
+
+    private TimeSpan BucketSize => window.Value.TotalDays switch
+    {
+        <= 1 => TimeSpan.FromHours(1),
+        <= 7 => TimeSpan.FromHours(6),
+        _ => TimeSpan.FromDays(1)
+    };
 
     private async Task ChangeWindowAsync(KeyValuePair<string, TimeSpan> selected)
     {

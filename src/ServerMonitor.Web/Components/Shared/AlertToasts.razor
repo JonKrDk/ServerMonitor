@@ -1,0 +1,46 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@inject MonitorBroadcaster Broadcaster
+@inject CurrentUserAccessor CurrentUser
+
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    @foreach (var toast in toasts)
+    {
+        <div class="toast show align-items-center text-bg-danger" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">@toast</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        aria-label="Dismiss" @onclick="() => Dismiss(toast)"></button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<string> toasts = [];
+    private string? ownerId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ownerId = await CurrentUser.GetIdOrDefaultAsync();
+        if (ownerId is not null)
+        {
+            Broadcaster.AlertRaised += OnAlertRaised;
+        }
+    }
+
+    private void OnAlertRaised(string owner, Alert alert)
+    {
+        if (owner != ownerId)
+        {
+            return;
+        }
+
+        toasts.Add(alert.Message);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Dismiss(string toast) => toasts.Remove(toast);
+
+    public void Dispose() => Broadcaster.AlertRaised -= OnAlertRaised;
+}

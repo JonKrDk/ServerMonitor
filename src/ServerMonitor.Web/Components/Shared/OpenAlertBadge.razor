@@ -1,0 +1,55 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@inject AlertService AlertService
+@inject MonitorBroadcaster Broadcaster
+@inject CurrentUserAccessor CurrentUser
+
+@if (openAlerts > 0)
+{
+    <span class="badge text-bg-danger">@openAlerts</span>
+}
+
+@code {
+    private string? ownerId;
+    private int openAlerts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ownerId = await CurrentUser.GetIdOrDefaultAsync();
+        if (ownerId is null)
+        {
+            return;
+        }
+
+        await RefreshAsync();
+        Broadcaster.AlertRaised += OnAlertChanged;
+        Broadcaster.StatusUpdated += OnStatusUpdated;
+    }
+
+    private async Task RefreshAsync() =>
+        openAlerts = (await AlertService.ListAsync(ownerId!)).Count(a => !a.IsResolved);
+
+    private void OnAlertChanged(string owner, Alert alert) => Refresh(owner);
+
+    private void OnStatusUpdated(string owner, TargetStatusUpdate update) => Refresh(owner);
+
+    private void Refresh(string owner)
+    {
+        if (owner != ownerId)
+        {
+            return;
+        }
+
+        InvokeAsync(async () =>
+        {
+            await RefreshAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Broadcaster.AlertRaised -= OnAlertChanged;
+        Broadcaster.StatusUpdated -= OnStatusUpdated;
+    }
+}

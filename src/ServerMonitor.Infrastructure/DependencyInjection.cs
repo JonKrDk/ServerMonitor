@@ -16,7 +16,10 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-        services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+        // Blazor renders components concurrently within one circuit, so each operation gets its
+        // own context from the factory; Identity still resolves a scoped one.
+        services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddScoped<AppDbContext>(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
         services.AddScoped<ITargetRepository, TargetRepository>();
         services.AddScoped<ICheckResultRepository, CheckResultRepository>();
@@ -29,6 +32,7 @@ public static class DependencyInjection
 
         services.Configure<MonitoringOptions>(configuration.GetSection(MonitoringOptions.SectionName));
         services.AddHostedService<MonitoringBackgroundService>();
+        services.AddHostedService<RetentionBackgroundService>();
 
         return services;
     }
