@@ -2,4 +2,13 @@
   <Folder Name="/Solution Items/">
     <File Path="Claude.md" />
   </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/ServerMonitor.Domain/ServerMonitor.Domain.csproj" />
+    <Project Path="src/ServerMonitor.Infrastructure/ServerMonitor.Infrastructure.csproj" />
+    <Project Path="src/ServerMonitor.UseCases/ServerMonitor.UseCases.csproj" />
+    <Project Path="src/ServerMonitor.Web/ServerMonitor.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ServerMonitor.UnitTests/ServerMonitor.UnitTests.csproj" />
+  </Folder>
 </Solution>
