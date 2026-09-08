@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using ServerMonitor.Web.Components.Account.Pages;
 using ServerMonitor.Web.Components.Account.Pages.Manage;
-using ServerMonitor.Web.Data;
+using ServerMonitor.Infrastructure.Data;
 
 namespace Microsoft.AspNetCore.Routing;
 

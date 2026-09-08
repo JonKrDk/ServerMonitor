@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace ServerMonitor.Web.Migrations
+namespace ServerMonitor.Infrastructure.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class CreateIdentitySchema : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -30,6 +30,7 @@ namespace ServerMonitor.Web.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    DefaultCheckIntervalSeconds = table.Column<int>(type: "int", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -48,6 +49,31 @@ namespace ServerMonitor.Web.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUsers", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Targets",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OwnerId = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Kind = table.Column<int>(type: "int", nullable: false),
+                    Address = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: false),
+                    Port = table.Column<int>(type: "int", nullable: true),
+                    ExpectedStatusCode = table.Column<int>(type: "int", nullable: true),
+                    CheckIntervalSeconds = table.Column<int>(type: "int", nullable: false),
+                    TimeoutSeconds = table.Column<int>(type: "int", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    LastCheckedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    ConsecutiveFailures = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Targets", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -175,6 +201,57 @@ namespace ServerMonitor.Web.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "Alerts",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    TargetId = table.Column<int>(type: "int", nullable: false),
+                    RaisedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    ResolvedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    Message = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    IsAcknowledged = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Alerts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Alerts_Targets_TargetId",
+                        column: x => x.TargetId,
+                        principalTable: "Targets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CheckResults",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    TargetId = table.Column<int>(type: "int", nullable: false),
+                    CheckedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    ResponseTimeMs = table.Column<int>(type: "int", nullable: true),
+                    Error = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CheckResults", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CheckResults_Targets_TargetId",
+                        column: x => x.TargetId,
+                        principalTable: "Targets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Alerts_TargetId_ResolvedAt",
+                table: "Alerts",
+                columns: new[] { "TargetId", "ResolvedAt" });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -218,11 +295,24 @@ namespace ServerMonitor.Web.Migrations
                 column: "NormalizedUserName",
                 unique: true,
                 filter: "[NormalizedUserName] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CheckResults_TargetId_CheckedAt",
+                table: "CheckResults",
+                columns: new[] { "TargetId", "CheckedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Targets_OwnerId",
+                table: "Targets",
+                column: "OwnerId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "Alerts");
+
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 
@@ -242,10 +332,16 @@ namespace ServerMonitor.Web.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "CheckResults");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
+
+            migrationBuilder.DropTable(
+                name: "Targets");
         }
     }
 }

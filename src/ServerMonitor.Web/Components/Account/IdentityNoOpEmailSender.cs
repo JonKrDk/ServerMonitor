@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using ServerMonitor.Web.Data;
+using ServerMonitor.Infrastructure.Data;
 
 namespace ServerMonitor.Web.Components.Account;
 

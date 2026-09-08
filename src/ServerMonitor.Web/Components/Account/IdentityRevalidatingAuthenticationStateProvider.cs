@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using ServerMonitor.Web.Data;
+using ServerMonitor.Infrastructure.Data;
 
 namespace ServerMonitor.Web.Components.Account;
 

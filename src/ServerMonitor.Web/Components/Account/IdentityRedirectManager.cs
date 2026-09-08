@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
-using ServerMonitor.Web.Data;
+using ServerMonitor.Infrastructure.Data;
 
 namespace ServerMonitor.Web.Components.Account;
 
