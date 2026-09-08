@@ -8,13 +8,14 @@ namespace ServerMonitor.Infrastructure.Repositories;
 public class TargetRepository(AppDbContext db) : ITargetRepository
 {
     public async Task<IReadOnlyList<MonitoredTarget>> ListForOwnerAsync(string ownerId, CancellationToken cancellationToken = default) =>
-        await db.Targets.Where(t => t.OwnerId == ownerId).OrderBy(t => t.Name).ToListAsync(cancellationToken);
+        await db.Targets.AsNoTracking().Where(t => t.OwnerId == ownerId).OrderBy(t => t.Name).ToListAsync(cancellationToken);
 
     public Task<MonitoredTarget?> GetAsync(int id, CancellationToken cancellationToken = default) =>
         db.Targets.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
 
     public async Task<IReadOnlyList<MonitoredTarget>> ListDueAsync(DateTimeOffset now, CancellationToken cancellationToken = default) =>
         await db.Targets
+            .AsNoTracking()
             .Where(t => t.IsEnabled &&
                 (t.LastCheckedAt == null ||
                  EF.Functions.DateDiffSecond(t.LastCheckedAt.Value, now) >= t.CheckIntervalSeconds))

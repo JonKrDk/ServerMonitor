@@ -29,6 +29,8 @@ public class MonitoredTarget
 
     public DateTimeOffset? LastCheckedAt { get; set; }
 
+    public int? LastResponseTimeMs { get; set; }
+
     public int ConsecutiveFailures { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }

@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using ServerMonitor.Infrastructure;
 using ServerMonitor.Infrastructure.Data;
+using ServerMonitor.UseCases;
+using ServerMonitor.UseCases.Interfaces;
 using ServerMonitor.Web.Components;
 using ServerMonitor.Web.Components.Account;
+using ServerMonitor.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +26,12 @@ builder.Services.AddAuthentication(options =>
     .AddIdentityCookies();
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddUseCases();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+builder.Services.AddScoped<CurrentUserAccessor>();
+builder.Services.AddSingleton<MonitorBroadcaster>();
+builder.Services.AddSingleton<IMonitorNotifier>(sp => sp.GetRequiredService<MonitorBroadcaster>());
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ServerMonitor.Infrastructure.Checkers;
 using ServerMonitor.Infrastructure.Data;
+using ServerMonitor.Infrastructure.Monitoring;
 using ServerMonitor.Infrastructure.Repositories;
 using ServerMonitor.UseCases.Interfaces;
 
@@ -25,6 +26,9 @@ public static class DependencyInjection
         services.AddScoped<IStatusChecker, HttpChecker>();
         services.AddScoped<IStatusChecker, PingChecker>();
         services.AddScoped<IStatusChecker, TcpChecker>();
+
+        services.Configure<MonitoringOptions>(configuration.GetSection(MonitoringOptions.SectionName));
+        services.AddHostedService<MonitoringBackgroundService>();
 
         return services;
     }

@@ -1,7 +1,124 @@
-﻿@page "/"
+@page "/"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject TargetService TargetService
+@inject AlertService AlertService
+@inject CurrentUserAccessor CurrentUser
+@inject MonitorBroadcaster Broadcaster
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Dashboard</h1>
 
-Welcome to your new app.
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body">
+            <div class="text-body-secondary small">Targets</div>
+            <div class="fs-3">@targets.Count</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body">
+            <div class="text-body-secondary small">Up</div>
+            <div class="fs-3 text-success">@targets.Count(t => t.Status == MonitorStatus.Up)</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body">
+            <div class="text-body-secondary small">Down</div>
+            <div class="fs-3 text-danger">@targets.Count(t => t.Status == MonitorStatus.Down)</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body">
+            <div class="text-body-secondary small">Open alerts</div>
+            <div class="fs-3">@openAlerts</div>
+        </div></div>
+    </div>
+</div>
+
+@if (targets.Count == 0)
+{
+    <p>No targets yet. <a href="targets/new">Add your first one</a>.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Kind</th>
+                <th>Address</th>
+                <th>Status</th>
+                <th>Response</th>
+                <th>Last checked</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var target in targets)
+            {
+                <tr>
+                    <td><a href="targets/@target.Id">@target.Name</a></td>
+                    <td>@target.Kind</td>
+                    <td class="text-truncate" style="max-width: 20rem;">@target.Address</td>
+                    <td><StatusBadge Status="target.Status" /></td>
+                    <td>@(target.LastResponseTimeMs is { } ms ? $"{ms} ms" : "—")</td>
+                    <td>@(target.LastCheckedAt?.ToLocalTime().ToString("g") ?? "never")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string ownerId = string.Empty;
+    private List<MonitoredTarget> targets = [];
+    private int openAlerts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ownerId = await CurrentUser.GetIdAsync();
+        targets = [.. await TargetService.ListAsync(ownerId)];
+        openAlerts = (await AlertService.ListAsync(ownerId)).Count(a => !a.IsResolved);
+
+        Broadcaster.StatusUpdated += OnStatusUpdated;
+        Broadcaster.AlertRaised += OnAlertRaised;
+    }
+
+    private void OnStatusUpdated(string owner, TargetStatusUpdate update)
+    {
+        if (owner != ownerId)
+        {
+            return;
+        }
+
+        var target = targets.FirstOrDefault(t => t.Id == update.TargetId);
+        if (target is null)
+        {
+            return;
+        }
+
+        target.Status = update.Status;
+        target.LastCheckedAt = update.CheckedAt;
+        target.LastResponseTimeMs = update.ResponseTimeMs;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnAlertRaised(string owner, Alert alert)
+    {
+        if (owner != ownerId)
+        {
+            return;
+        }
+
+        openAlerts++;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Broadcaster.StatusUpdated -= OnStatusUpdated;
+        Broadcaster.AlertRaised -= OnAlertRaised;
+    }
+}

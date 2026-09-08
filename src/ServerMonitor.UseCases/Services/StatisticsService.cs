@@ -17,6 +17,9 @@ public class StatisticsService(ICheckResultRepository checkResults)
         CancellationToken cancellationToken = default) =>
         Bucket(await checkResults.ListForTargetAsync(targetId, since, cancellationToken), since, bucketSize);
 
+    public Task<IReadOnlyList<CheckResult>> GetRecentChecksAsync(int targetId, int count, CancellationToken cancellationToken = default) =>
+        checkResults.ListRecentForTargetAsync(targetId, count, cancellationToken);
+
     public static TargetStatistics Summarize(IReadOnlyCollection<CheckResult> checks)
     {
         if (checks.Count == 0)

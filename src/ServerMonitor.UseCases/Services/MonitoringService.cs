@@ -32,6 +32,7 @@ public class MonitoringService(
         var previousStatus = target.Status;
         target.Status = outcome.Status;
         target.LastCheckedAt = now;
+        target.LastResponseTimeMs = outcome.ResponseTimeMs;
         target.ConsecutiveFailures = outcome.Status == MonitorStatus.Down ? target.ConsecutiveFailures + 1 : 0;
         await targets.UpdateAsync(target, cancellationToken);
 
