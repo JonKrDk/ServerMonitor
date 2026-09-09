@@ -1,0 +1,178 @@
+@page "/targets/new"
+@page "/targets/{Id:int}/edit"
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject TargetService TargetService
+@inject CurrentUserAccessor CurrentUser
+@inject NavigationManager Navigation
+
+<PageTitle>@(Id is null ? "Add target" : "Edit target")</PageTitle>
+
+<h1>@(Id is null ? "Add target" : "Edit target")</h1>
+
+@if (notFound)
+{
+    <p>Target not found.</p>
+}
+else
+{
+    <EditForm Model="form" OnValidSubmit="SaveAsync" class="col-md-6">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label" for="name">Name</label>
+            <InputText id="name" class="form-control" @bind-Value="form.Name" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="kind">Kind</label>
+            <InputSelect id="kind" class="form-select" @bind-Value="form.Kind">
+                @foreach (var kind in Enum.GetValues<TargetKind>())
+                {
+                    <option value="@kind">@kind</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="address">@(form.Kind == TargetKind.Http ? "URL" : "Host")</label>
+            <InputText id="address" class="form-control" @bind-Value="form.Address" />
+        </div>
+
+        @if (form.Kind == TargetKind.Tcp)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="port">Port</label>
+                <InputNumber id="port" class="form-control" @bind-Value="form.Port" />
+            </div>
+        }
+
+        @if (form.Kind == TargetKind.Http)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="status">Expected status code (optional)</label>
+                <InputNumber id="status" class="form-control" @bind-Value="form.ExpectedStatusCode" />
+            </div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label" for="interval">Check interval (seconds)</label>
+            <InputNumber id="interval" class="form-control" @bind-Value="form.CheckIntervalSeconds" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="timeout">Timeout (seconds)</label>
+            <InputNumber id="timeout" class="form-control" @bind-Value="form.TimeoutSeconds" />
+        </div>
+
+        <div class="form-check mb-3">
+            <InputCheckbox id="enabled" class="form-check-input" @bind-Value="form.IsEnabled" />
+            <label class="form-check-label" for="enabled">Enabled</label>
+        </div>
+
+        @if (error is not null)
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a class="btn btn-link" href="targets">Cancel</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    private readonly TargetForm form = new();
+    private string ownerId = string.Empty;
+    private bool notFound;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ownerId = await CurrentUser.GetIdAsync();
+
+        if (Id is null)
+        {
+            return;
+        }
+
+        var target = await TargetService.GetAsync(Id.Value, ownerId);
+        if (target is null)
+        {
+            notFound = true;
+            return;
+        }
+
+        form.Name = target.Name;
+        form.Kind = target.Kind;
+        form.Address = target.Address;
+        form.Port = target.Port;
+        form.ExpectedStatusCode = target.ExpectedStatusCode;
+        form.CheckIntervalSeconds = target.CheckIntervalSeconds;
+        form.TimeoutSeconds = target.TimeoutSeconds;
+        form.IsEnabled = target.IsEnabled;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (form.Kind == TargetKind.Tcp && form.Port is null)
+        {
+            error = "TCP targets need a port.";
+            return;
+        }
+
+        var target = new MonitoredTarget
+        {
+            Id = Id ?? 0,
+            Name = form.Name,
+            Kind = form.Kind,
+            Address = form.Address,
+            Port = form.Kind == TargetKind.Tcp ? form.Port : null,
+            ExpectedStatusCode = form.Kind == TargetKind.Http ? form.ExpectedStatusCode : null,
+            CheckIntervalSeconds = form.CheckIntervalSeconds,
+            TimeoutSeconds = form.TimeoutSeconds,
+            IsEnabled = form.IsEnabled
+        };
+
+        if (Id is null)
+        {
+            await TargetService.CreateAsync(ownerId, target);
+        }
+        else if (!await TargetService.UpdateAsync(ownerId, target))
+        {
+            notFound = true;
+            return;
+        }
+
+        Navigation.NavigateTo("targets");
+    }
+
+    private sealed class TargetForm
+    {
+        [Required, StringLength(200)]
+        public string Name { get; set; } = string.Empty;
+
+        public TargetKind Kind { get; set; } = TargetKind.Http;
+
+        [Required, StringLength(2048)]
+        public string Address { get; set; } = string.Empty;
+
+        [Range(1, 65535)]
+        public int? Port { get; set; }
+
+        [Range(100, 599)]
+        public int? ExpectedStatusCode { get; set; }
+
+        [Range(5, 86400)]
+        public int CheckIntervalSeconds { get; set; } = 60;
+
+        [Range(1, 120)]
+        public int TimeoutSeconds { get; set; } = 10;
+
+        public bool IsEnabled { get; set; } = true;
+    }
+}

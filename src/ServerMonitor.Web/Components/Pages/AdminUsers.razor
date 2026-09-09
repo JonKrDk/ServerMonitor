@@ -1,0 +1,71 @@
+@page "/admin/users"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using ServerMonitor.Infrastructure.Data
+@attribute [Authorize(Roles = Roles.Admin)]
+@rendermode InteractiveServer
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>Users</PageTitle>
+
+<h1>Users</h1>
+
+<table class="table align-middle">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Roles</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in users)
+        {
+            <tr>
+                <td>@user.Email</td>
+                <td>@string.Join(", ", roles[user.Id])</td>
+                <td class="text-end">
+                    @if (roles[user.Id].Contains(Roles.Admin))
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetAdminAsync(user, false)">Remove admin</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => SetAdminAsync(user, true)">Make admin</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<ApplicationUser> users = [];
+    private readonly Dictionary<string, IList<string>> roles = [];
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        users = await UserManager.Users.OrderBy(u => u.Email).ToListAsync();
+        roles.Clear();
+        foreach (var user in users)
+        {
+            roles[user.Id] = await UserManager.GetRolesAsync(user);
+        }
+    }
+
+    private async Task SetAdminAsync(ApplicationUser user, bool isAdmin)
+    {
+        if (isAdmin)
+        {
+            await UserManager.AddToRoleAsync(user, Roles.Admin);
+        }
+        else
+        {
+            await UserManager.RemoveFromRoleAsync(user, Roles.Admin);
+        }
+
+        await LoadAsync();
+    }
+}

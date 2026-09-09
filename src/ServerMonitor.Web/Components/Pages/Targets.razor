@@ -1,0 +1,69 @@
+@page "/targets"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject TargetService TargetService
+@inject CurrentUserAccessor CurrentUser
+
+<PageTitle>Targets</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Targets</h1>
+    <a class="btn btn-primary" href="targets/new">Add target</a>
+</div>
+
+@if (targets.Count == 0)
+{
+    <p>Nothing monitored yet.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Kind</th>
+                <th>Address</th>
+                <th>Interval</th>
+                <th>Enabled</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var target in targets)
+            {
+                <tr>
+                    <td><a href="targets/@target.Id">@target.Name</a></td>
+                    <td>@target.Kind</td>
+                    <td class="text-truncate" style="max-width: 18rem;">@target.Address@(target.Port is { } port ? $":{port}" : "")</td>
+                    <td>@target.CheckIntervalSeconds s</td>
+                    <td>@(target.IsEnabled ? "Yes" : "No")</td>
+                    <td><StatusBadge Status="target.Status" /></td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-secondary" href="targets/@target.Id/edit">Edit</a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(target)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string ownerId = string.Empty;
+    private List<MonitoredTarget> targets = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        ownerId = await CurrentUser.GetIdAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() => targets = [.. await TargetService.ListAsync(ownerId)];
+
+    private async Task DeleteAsync(MonitoredTarget target)
+    {
+        await TargetService.DeleteAsync(target.Id, ownerId);
+        await LoadAsync();
+    }
+}

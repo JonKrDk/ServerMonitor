@@ -1,0 +1,13 @@
+<span class="badge @CssClass">@Status</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public MonitorStatus Status { get; set; }
+
+    private string CssClass => Status switch
+    {
+        MonitorStatus.Up => "text-bg-success",
+        MonitorStatus.Down => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+}

@@ -1,0 +1,87 @@
+@page "/alerts"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject AlertService AlertService
+@inject CurrentUserAccessor CurrentUser
+@inject MonitorBroadcaster Broadcaster
+
+<PageTitle>Alerts</PageTitle>
+
+<h1>Alerts</h1>
+
+@if (alerts.Count == 0)
+{
+    <p>No alerts raised.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Target</th>
+                <th>Raised</th>
+                <th>Resolved</th>
+                <th>Message</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var alert in alerts)
+            {
+                <tr class="@(alert.IsResolved ? "" : "table-warning")">
+                    <td><a href="targets/@alert.TargetId">@alert.Target?.Name</a></td>
+                    <td>@alert.RaisedAt.ToLocalTime().ToString("g")</td>
+                    <td>@(alert.ResolvedAt?.ToLocalTime().ToString("g") ?? "open")</td>
+                    <td>@alert.Message</td>
+                    <td class="text-end">
+                        @if (!alert.IsAcknowledged)
+                        {
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => AcknowledgeAsync(alert)">Acknowledge</button>
+                        }
+                        else
+                        {
+                            <span class="text-body-secondary small">Acknowledged</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string ownerId = string.Empty;
+    private List<Alert> alerts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        ownerId = await CurrentUser.GetIdAsync();
+        await LoadAsync();
+        Broadcaster.AlertRaised += OnAlertRaised;
+    }
+
+    private async Task LoadAsync() => alerts = [.. await AlertService.ListAsync(ownerId)];
+
+    private async Task AcknowledgeAsync(Alert alert)
+    {
+        await AlertService.AcknowledgeAsync(alert.Id, ownerId);
+        await LoadAsync();
+    }
+
+    private void OnAlertRaised(string owner, Alert alert)
+    {
+        if (owner != ownerId)
+        {
+            return;
+        }
+
+        InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => Broadcaster.AlertRaised -= OnAlertRaised;
+}
